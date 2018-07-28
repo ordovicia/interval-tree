@@ -1,19 +1,25 @@
 use std::cmp::Ordering;
-use std::ops::Deref;
+use std::ops::{Deref, Range};
 
+/// Interval.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct Interval<T> {
-    pub(crate) begin: T,
-    pub(crate) end: T,
-}
+pub struct Interval<T>(pub(crate) Range<T>);
 
-impl<T: Ord> Interval<T> {
-    pub fn new(begin: T, end: T) -> Self {
-        Self { begin, end }
+impl<T> Interval<T> {
+    pub fn new(range: Range<T>) -> Self {
+        Interval(range)
     }
 }
 
-#[derive(Debug, Eq)]
+impl<T> Deref for Interval<T> {
+    type Target = Range<T>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct IntervalBeginSorted<T>(pub(crate) Interval<T>);
 
 impl<T> IntervalBeginSorted<T> {
@@ -32,7 +38,7 @@ impl<T> Deref for IntervalBeginSorted<T> {
 
 impl<T: Ord> Ord for IntervalBeginSorted<T> {
     fn cmp(&self, rhs: &Self) -> Ordering {
-        self.begin.cmp(&rhs.begin)
+        self.start.cmp(&rhs.start)
     }
 }
 
@@ -42,13 +48,7 @@ impl<T: Ord> PartialOrd for IntervalBeginSorted<T> {
     }
 }
 
-impl<T: PartialEq> PartialEq for IntervalBeginSorted<T> {
-    fn eq(&self, rhs: &Self) -> bool {
-        self.begin == rhs.begin
-    }
-}
-
-#[derive(Debug, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct IntervalEndSorted<T>(pub(crate) Interval<T>);
 
 impl<T> IntervalEndSorted<T> {
@@ -74,11 +74,5 @@ impl<T: Ord> Ord for IntervalEndSorted<T> {
 impl<T: Ord> PartialOrd for IntervalEndSorted<T> {
     fn partial_cmp(&self, rhs: &Self) -> Option<Ordering> {
         Some(self.cmp(&rhs))
-    }
-}
-
-impl<T: PartialEq> PartialEq for IntervalEndSorted<T> {
-    fn eq(&self, rhs: &Self) -> bool {
-        self.end == rhs.end
     }
 }
