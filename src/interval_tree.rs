@@ -1,32 +1,41 @@
+use std::cmp::PartialOrd;
 use std::collections::{BinaryHeap, HashSet};
-use std::hash::Hash;
-use std::ops::{Add, Div, Range};
 
-use interval::{IntervalBeginSorted, IntervalEndSorted};
+use interval::{BeginSorted, EndSorted};
 use Interval;
 
 /// Interval tree.
 #[derive(Debug)]
-pub struct IntervalTree<T: Ord> {
-    range: Range<T>,
-    center: T,
+pub struct IntervalTree<T>
+where
+    T: Interval,
+    BeginSorted<T>: Ord,
+    EndSorted<T>: Ord,
+{
+    range: T,
+    center: T::Item,
 
     left: Option<Box<IntervalTree<T>>>,
     right: Option<Box<IntervalTree<T>>>,
 
-    overlaps_begin: BinaryHeap<IntervalBeginSorted<T>>,
-    overlaps_end: BinaryHeap<IntervalEndSorted<T>>,
+    overlaps_begin: BinaryHeap<BeginSorted<T>>,
+    overlaps_end: BinaryHeap<EndSorted<T>>,
 }
 
 impl<T> IntervalTree<T>
 where
-    T: Clone + Ord + Hash + Add<T, Output = T> + Div<i32, Output = T>,
+    T: Interval,
+    <T as Iterator>::Item: PartialOrd,
+    BeginSorted<T>: Ord,
+    EndSorted<T>: Ord,
 {
     /// Creates a interval tree on `range`.
-    pub fn new(range: Range<T>) -> Self {
+    pub fn new(range: T) -> Self {
+        let center = range.center();
+
         Self {
-            range: range.clone(),
-            center: (range.start + range.end) / 2,
+            range,
+            center,
 
             left: None,
             right: None,
@@ -36,7 +45,7 @@ where
         }
     }
 
-    /// Inserts an [`Interval`](struct.Interval.html) to this interval tree.
+    /// Inserts an [`Interval`](trait.Interval.html) to this interval tree.
     ///
     /// # Examples
     ///
@@ -46,39 +55,37 @@ where
     ///
     /// let mut tree = IntervalTree::new(0..100);
     ///
-    /// tree.insert(Interval::new(5..10));
-    /// tree.insert(Interval::new(85..95));
+    /// tree.insert(5..10);
+    /// tree.insert(85..95);
     /// ```
     ///
     /// # Panic
     ///
     /// Panics if the interval overflows the range of this interval tree.
-    pub fn insert(&mut self, interval: Interval<T>) {
+    pub fn insert(&mut self, interval: T) {
         assert!(!self.overflow_interval(&interval));
 
-        if interval.end <= self.center {
+        if interval.end() <= self.center {
             if self.left.is_none() {
-                let range = self.range.start.clone()..self.center.clone();
+                let range = self.range.left_half();
                 self.left = Some(Box::new(IntervalTree::new(range)));
             }
 
             self.left.as_mut().unwrap().insert(interval);
-        } else if interval.start > self.center {
+        } else if interval.begin() > self.center {
             if self.right.is_none() {
-                let range = self.center.clone()..self.range.end.clone();
+                let range = self.range.right_half();
                 self.right = Some(Box::new(IntervalTree::new(range)));
             }
 
             self.right.as_mut().unwrap().insert(interval);
         } else {
-            self.overlaps_begin
-                .push(IntervalBeginSorted::new(interval.clone()));
-            self.overlaps_end
-                .push(IntervalEndSorted::new(interval.clone()));
+            self.overlaps_begin.push(interval.to_begin_sorted());
+            self.overlaps_end.push(interval.to_end_sorted());
         }
     }
 
-    /// Finds [`Interval`](struct.Interval.html)s in this interval tree that contains the `point`.
+    /// Finds [`Interval`](trait.Interval.html)s in this interval tree that contains the `point`.
     ///
     /// # Examples
     ///
@@ -90,23 +97,23 @@ where
     ///
     /// let mut tree = IntervalTree::new(0..100);
     ///
-    /// tree.insert(Interval::new(5..10));
-    /// tree.insert(Interval::new(85..95));
-    /// tree.insert(Interval::new(90..100));
+    /// tree.insert(5..10);
+    /// tree.insert(85..95);
+    /// tree.insert(90..100);
     ///
     /// assert_eq!(tree.find_with_point(0), HashSet::new());
     ///
-    /// let intervals = [Interval::new(5..10)].iter().cloned().collect();
+    /// let intervals = [5..10].iter().cloned().collect();
     /// assert_eq!(tree.find_with_point(5), intervals);
     ///
-    /// let intervals = [Interval::new(85..95), Interval::new(90..100)].iter().cloned().collect();
+    /// let intervals = [85..95, 90..100].iter().cloned().collect();
     /// assert_eq!(tree.find_with_point(90), intervals);
     /// ```
     ///
     /// # Panic
     ///
     /// Panics if the point is out-of-range of this interval tree;
-    pub fn find_with_point(&self, point: T) -> HashSet<Interval<T>> {
+    pub fn find_with_point(&self, point: T::Item) -> HashSet<T> {
         assert!(!self.overflow_point(&point));
 
         let mut found = HashSet::new();
@@ -114,21 +121,21 @@ where
         found
     }
 
-    fn find_with_point_rec(&self, point: T, found: &mut HashSet<Interval<T>>) {
+    fn find_with_point_rec(&self, point: T::Item, found: &mut HashSet<T>) {
         if point < self.center {
             for intv in self.overlaps_begin
                 .iter()
-                .filter(|intv| intv.start <= point)
+                .filter(|&intv| intv.to_interval().begin() <= point)
             {
-                found.insert(intv.0.clone());
+                found.insert(intv.to_interval());
             }
 
             if let Some(ref left) = self.left {
                 left.find_with_point_rec(point, found);
             }
         } else {
-            for intv in self.overlaps_end.iter().filter(|intv| intv.end > point) {
-                found.insert(intv.0.clone());
+            for intv in self.overlaps_end.iter().filter(|intv| intv.end() > point) {
+                found.insert(intv.to_interval());
             }
 
             if let Some(ref right) = self.right {
@@ -137,23 +144,23 @@ where
         }
     }
 
-    // fn find_with_interval(&self, interval: Interval<T>) -> HashSet<Interval<T>> {
-    //     assert!(!self.overflow_interval(&interval));
-    //
-    //     let mut found = HashSet::new();
-    //     for p in interval.0 {
-    //         found.union(&self.find_with_point(p));
-    //     }
-    //
-    //     found
-    // }
+    // // fn find_with_interval(&self, interval: Interval<T>) -> HashSet<Interval<T>> {
+    // //     assert!(!self.overflow_interval(&interval));
+    // //
+    // //     let mut found = HashSet::new();
+    // //     for p in interval.0 {
+    // //         found.union(&self.find_with_point(p));
+    // //     }
+    // //
+    // //     found
+    // // }
 
-    fn overflow_interval(&self, interval: &Interval<T>) -> bool {
-        interval.start < self.range.start || interval.end > self.range.end
+    fn overflow_interval(&self, interval: &T) -> bool {
+        interval.begin() < self.range.begin() || interval.end() > self.range.end()
     }
 
-    fn overflow_point(&self, point: &T) -> bool {
-        point < &self.range.start || point >= &self.range.end
+    fn overflow_point(&self, point: &T::Item) -> bool {
+        point < &self.range.begin() || point >= &self.range.end()
     }
 }
 
@@ -165,67 +172,41 @@ mod tests {
     fn test_find_with_point() {
         let mut tree = IntervalTree::new(0..10);
         for i in 0..=5 {
-            tree.insert(Interval::new(i..(i + 5)));
+            tree.insert(i..(i + 5));
         }
 
-        assert_eq!(
-            tree.find_with_point(0),
-            [Interval::new(0..5)].iter().cloned().collect()
-        );
+        assert_eq!(tree.find_with_point(0), [0..5].iter().cloned().collect());
 
         assert_eq!(
             tree.find_with_point(2),
-            [
-                Interval::new(0..5),
-                Interval::new(1..6),
-                Interval::new(2..7)
-            ].iter()
-                .cloned()
-                .collect()
+            [0..5, 1..6, 2..7].iter().cloned().collect()
         );
 
         assert_eq!(
             tree.find_with_point(5),
-            [
-                Interval::new(1..6),
-                Interval::new(2..7),
-                Interval::new(3..8),
-                Interval::new(4..9),
-                Interval::new(5..10)
-            ].iter()
-                .cloned()
-                .collect()
+            [1..6, 2..7, 3..8, 4..9, 5..10].iter().cloned().collect()
         );
 
         assert_eq!(
             tree.find_with_point(7),
-            [
-                Interval::new(3..8),
-                Interval::new(4..9),
-                Interval::new(5..10)
-            ].iter()
-                .cloned()
-                .collect()
+            [3..8, 4..9, 5..10].iter().cloned().collect()
         );
 
-        assert_eq!(
-            tree.find_with_point(9),
-            [Interval::new(5..10)].iter().cloned().collect()
-        );
+        assert_eq!(tree.find_with_point(9), [5..10].iter().cloned().collect());
     }
 
     #[test]
     #[should_panic]
     fn panic_insert_begin() {
         let mut tree = IntervalTree::new(1..11);
-        tree.insert(Interval::new(0..10));
+        tree.insert(0..10);
     }
 
     #[test]
     #[should_panic]
     fn panic_insert_end() {
         let mut tree = IntervalTree::new(0..10);
-        tree.insert(Interval::new(1..11));
+        tree.insert(1..11);
     }
 
     #[test]

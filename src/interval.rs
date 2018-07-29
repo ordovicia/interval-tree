@@ -1,78 +1,122 @@
 use std::cmp::Ordering;
+use std::hash::Hash;
 use std::ops::{Deref, Range};
 
 /// Interval.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct Interval<T>(pub(crate) Range<T>);
+pub trait Interval: Clone + Eq + Hash + Iterator {
+    fn begin(&self) -> Self::Item;
+    fn end(&self) -> Self::Item;
 
-impl<T> Interval<T> {
-    pub fn new(range: Range<T>) -> Self {
-        Interval(range)
+    fn center(&self) -> Self::Item;
+
+    fn left_half(&self) -> Self;
+    fn right_half(&self) -> Self;
+
+    fn to_begin_sorted(&self) -> BeginSorted<Self>;
+    fn to_end_sorted(&self) -> EndSorted<Self>;
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub struct BeginSorted<T: Interval>(T);
+
+#[derive(Debug, PartialEq, Eq)]
+pub struct EndSorted<T: Interval>(T);
+
+impl<T: Interval> BeginSorted<T> {
+    pub(crate) fn to_interval(&self) -> T {
+        self.0.clone()
     }
 }
 
-impl<T> Deref for Interval<T> {
-    type Target = Range<T>;
+impl<T: Interval> EndSorted<T> {
+    pub(crate) fn to_interval(&self) -> T {
+        self.0.clone()
+    }
+}
+
+impl<T: Interval> Deref for BeginSorted<T> {
+    type Target = T;
 
     fn deref(&self) -> &Self::Target {
         &self.0
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub(crate) struct IntervalBeginSorted<T>(pub(crate) Interval<T>);
-
-impl<T> IntervalBeginSorted<T> {
-    pub(crate) fn new(interval: Interval<T>) -> Self {
-        IntervalBeginSorted(interval)
-    }
-}
-
-impl<T> Deref for IntervalBeginSorted<T> {
-    type Target = Interval<T>;
+impl<T: Interval> Deref for EndSorted<T> {
+    type Target = T;
 
     fn deref(&self) -> &Self::Target {
         &self.0
     }
 }
 
-impl<T: Ord> Ord for IntervalBeginSorted<T> {
-    fn cmp(&self, rhs: &Self) -> Ordering {
-        self.start.cmp(&rhs.start)
-    }
+macro_rules! impl_interval_for_range {
+    ($int:ty) => {
+        impl Interval for Range<$int> {
+            fn begin(&self) -> Self::Item {
+                self.start
+            }
+
+            fn end(&self) -> Self::Item {
+                self.end
+            }
+
+            fn center(&self) -> Self::Item {
+                (self.start + self.end) / 2
+            }
+
+            fn left_half(&self) -> Self {
+                self.begin()..self.center()
+            }
+
+            fn right_half(&self) -> Self {
+                self.center()..self.end()
+            }
+
+            fn to_begin_sorted(&self) -> BeginSorted<Self> {
+                BeginSorted(self.clone())
+            }
+
+            fn to_end_sorted(&self) -> EndSorted<Self> {
+                EndSorted(self.clone())
+            }
+        }
+
+        impl Ord for BeginSorted<Range<$int>> {
+            fn cmp(&self, rhs: &Self) -> Ordering {
+                self.start.cmp(&rhs.start)
+            }
+        }
+
+        impl PartialOrd for BeginSorted<Range<$int>> {
+            fn partial_cmp(&self, rhs: &Self) -> Option<Ordering> {
+                Some(self.cmp(&rhs))
+            }
+        }
+
+        impl Ord for EndSorted<Range<$int>> {
+            fn cmp(&self, rhs: &Self) -> Ordering {
+                rhs.end.cmp(&self.end)
+            }
+        }
+
+        impl PartialOrd for EndSorted<Range<$int>> {
+            fn partial_cmp(&self, rhs: &Self) -> Option<Ordering> {
+                Some(self.cmp(&rhs))
+            }
+        }
+    };
 }
 
-impl<T: Ord> PartialOrd for IntervalBeginSorted<T> {
-    fn partial_cmp(&self, rhs: &Self) -> Option<Ordering> {
-        Some(self.cmp(&rhs))
-    }
-}
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub(crate) struct IntervalEndSorted<T>(pub(crate) Interval<T>);
-
-impl<T> IntervalEndSorted<T> {
-    pub(crate) fn new(interval: Interval<T>) -> Self {
-        IntervalEndSorted(interval)
-    }
-}
-
-impl<T> Deref for IntervalEndSorted<T> {
-    type Target = Interval<T>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl<T: Ord> Ord for IntervalEndSorted<T> {
-    fn cmp(&self, rhs: &Self) -> Ordering {
-        rhs.end.cmp(&self.end)
-    }
-}
-
-impl<T: Ord> PartialOrd for IntervalEndSorted<T> {
-    fn partial_cmp(&self, rhs: &Self) -> Option<Ordering> {
-        Some(self.cmp(&rhs))
-    }
-}
+impl_interval_for_range!(u8);
+impl_interval_for_range!(i8);
+impl_interval_for_range!(u16);
+impl_interval_for_range!(i16);
+impl_interval_for_range!(u32);
+impl_interval_for_range!(i32);
+impl_interval_for_range!(u64);
+impl_interval_for_range!(i64);
+impl_interval_for_range!(u128);
+impl_interval_for_range!(i128);
+impl_interval_for_range!(usize);
+impl_interval_for_range!(isize);
