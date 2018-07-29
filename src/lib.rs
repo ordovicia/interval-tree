@@ -2,8 +2,9 @@
 //!
 //! Currently, [`IntervalTree`](struct.IntervalTree.html) supports
 //!
-//! - inserting intervals, and
-//! - findind intervals with a point.
+//! - inserting intervals; and
+//! - findind intervals with a point; and
+//! - findind intervals with an interval.
 //!
 //! # Examples
 //!
@@ -16,18 +17,38 @@
 //!     tree.insert(i..(i + 5));
 //! }
 //!
+//! // 0  1  2  3  4  5  6  7  8  9  10
+//! // |--|--|--|--|--|--|--|--|--|--|
+//! // *--------------o
+//! //    *--------------o
+//! //       *--------------o
+//! //          *--------------o
+//! //             *--------------o
+//! //                *--------------o
+//!
 //! assert_eq!(
 //!     tree.find_with_point(1),
-//!     [0..5, 1..6].iter().cloned().collect()
+//!     [&(0..5), &(1..6)].iter().cloned().collect()
 //! );
 //!
 //! assert_eq!(
 //!     tree.find_with_point(5),
-//!     (1..=5).map(|i| i..(i + 5)).collect());
+//!     [&(1..6), &(2..7), &(3..8), &(4..9), &(5..10)].iter().cloned().collect()
+//! );
 //!
 //! assert_eq!(
 //!     tree.find_with_point(9),
-//!     [5..10].iter().cloned().collect()
+//!     [&(5..10)].iter().cloned().collect()
+//! );
+//!
+//! assert_eq!(
+//!     tree.find_with_interval(0..3),
+//!     [&(0..5), &(1..6), &(2..7)].iter().cloned().collect()
+//! );
+//!
+//! assert_eq!(
+//!     tree.find_with_interval(6..9),
+//!     [&(2..7), &(3..8), &(4..9), &(5..10)].iter().cloned().collect()
 //! );
 //! ```
 

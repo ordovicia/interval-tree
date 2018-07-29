@@ -85,7 +85,7 @@ where
         }
     }
 
-    /// Finds [`Interval`](trait.Interval.html)s in this interval tree that contains the `point`.
+    /// Finds [`Interval`](trait.Interval.html)s in this interval tree that contain the `point`.
     ///
     /// # Examples
     ///
@@ -103,17 +103,17 @@ where
     ///
     /// assert_eq!(tree.find_with_point(0), HashSet::new());
     ///
-    /// let intervals = [5..10].iter().cloned().collect();
+    /// let intervals = [&(5..10)].iter().cloned().collect();
     /// assert_eq!(tree.find_with_point(5), intervals);
     ///
-    /// let intervals = [85..95, 90..100].iter().cloned().collect();
+    /// let intervals = [&(85..95), &(90..100)].iter().cloned().collect();
     /// assert_eq!(tree.find_with_point(90), intervals);
     /// ```
     ///
     /// # Panic
     ///
-    /// Panics if the point is out-of-range of this interval tree;
-    pub fn find_with_point(&self, point: T::Item) -> HashSet<T> {
+    /// Panics if the point is out-of-range of this interval tree.
+    pub fn find_with_point(&self, point: T::Item) -> HashSet<&T> {
         assert!(!self.overflow_point(&point));
 
         let mut found = HashSet::new();
@@ -121,13 +121,13 @@ where
         found
     }
 
-    fn find_with_point_rec(&self, point: T::Item, found: &mut HashSet<T>) {
+    fn find_with_point_rec<'a, 'b>(&'a self, point: T::Item, found: &'b mut HashSet<&'a T>) {
         if point < self.center {
             for intv in self.overlaps_begin
                 .iter()
-                .filter(|&intv| intv.to_interval().begin() <= point)
+                .filter(|&intv| intv.begin() <= point)
             {
-                found.insert(intv.to_interval());
+                found.insert(&intv);
             }
 
             if let Some(ref left) = self.left {
@@ -135,7 +135,7 @@ where
             }
         } else {
             for intv in self.overlaps_end.iter().filter(|intv| intv.end() > point) {
-                found.insert(intv.to_interval());
+                found.insert(&intv);
             }
 
             if let Some(ref right) = self.right {
@@ -144,16 +144,50 @@ where
         }
     }
 
-    // // fn find_with_interval(&self, interval: Interval<T>) -> HashSet<Interval<T>> {
-    // //     assert!(!self.overflow_interval(&interval));
-    // //
-    // //     let mut found = HashSet::new();
-    // //     for p in interval.0 {
-    // //         found.union(&self.find_with_point(p));
-    // //     }
-    // //
-    // //     found
-    // // }
+    /// Finds [`Interval`](trait.Interval.html)s in this interval tree that overlap with
+    /// `interval`.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// extern crate interval_tree;
+    ///
+    /// use std::collections::HashSet;
+    /// use interval_tree::{Interval, IntervalTree};
+    ///
+    /// let mut tree = IntervalTree::new(0..100);
+    ///
+    /// tree.insert(5..10);
+    /// tree.insert(85..95);
+    /// tree.insert(90..100);
+    ///
+    /// assert_eq!(tree.find_with_interval(0..5), HashSet::new());
+    ///
+    /// let intervals = [&(5..10)].iter().cloned().collect();
+    /// assert_eq!(tree.find_with_interval(3..8), intervals);
+    ///
+    /// let intervals = [&(85..95), &(90..100)].iter().cloned().collect();
+    /// assert_eq!(tree.find_with_interval(80..95), intervals);
+    ///
+    /// let intervals = [&(90..100)].iter().cloned().collect();
+    /// assert_eq!(tree.find_with_interval(95..100), intervals);
+    /// ```
+    ///
+    /// # Panic
+    ///
+    /// Panics if the interval is out-of-range of this interval tree.
+    pub fn find_with_interval(&self, interval: T) -> HashSet<&T> {
+        assert!(!self.overflow_interval(&interval));
+
+        let mut found = HashSet::new();
+        for p in interval {
+            for intv in self.find_with_point(p) {
+                found.insert(intv);
+            }
+        }
+
+        found
+    }
 
     fn overflow_interval(&self, interval: &T) -> bool {
         interval.begin() < self.range.begin() || interval.end() > self.range.end()
@@ -167,33 +201,6 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn test_find_with_point() {
-        let mut tree = IntervalTree::new(0..10);
-        for i in 0..=5 {
-            tree.insert(i..(i + 5));
-        }
-
-        assert_eq!(tree.find_with_point(0), [0..5].iter().cloned().collect());
-
-        assert_eq!(
-            tree.find_with_point(2),
-            [0..5, 1..6, 2..7].iter().cloned().collect()
-        );
-
-        assert_eq!(
-            tree.find_with_point(5),
-            [1..6, 2..7, 3..8, 4..9, 5..10].iter().cloned().collect()
-        );
-
-        assert_eq!(
-            tree.find_with_point(7),
-            [3..8, 4..9, 5..10].iter().cloned().collect()
-        );
-
-        assert_eq!(tree.find_with_point(9), [5..10].iter().cloned().collect());
-    }
 
     #[test]
     #[should_panic]
@@ -221,5 +228,19 @@ mod tests {
     fn panic_find_with_point_end() {
         let tree = IntervalTree::new(0..10);
         tree.find_with_point(10);
+    }
+
+    #[test]
+    #[should_panic]
+    fn panic_find_with_interval_start() {
+        let tree = IntervalTree::new(1..11);
+        tree.find_with_interval(0..10);
+    }
+
+    #[test]
+    #[should_panic]
+    fn panic_find_with_interval_end() {
+        let tree = IntervalTree::new(0..10);
+        tree.find_with_interval(1..11);
     }
 }

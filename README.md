@@ -4,8 +4,9 @@ A simple data structure representing an interval tree.
 
 Currently this crate supports
 
-- inserting intervals, and
-- findind intervals with a point.
+- inserting intervals; and
+- findind intervals with a point; and
+- findind intervals with an interval.
 
 ## Examples
 
@@ -15,20 +16,40 @@ use interval_tree::{Interval, IntervalTree};
 
 let mut tree = IntervalTree::new(0..10);
 for i in 0..=5 {
-    tree.insert(Interval::new(i..(i + 5)));
+    tree.insert(i..(i + 5));
 }
+
+// 0  1  2  3  4  5  6  7  8  9  10
+// |--|--|--|--|--|--|--|--|--|--|
+// *--------------o
+//    *--------------o
+//       *--------------o
+//          *--------------o
+//             *--------------o
+//                *--------------o
 
 assert_eq!(
     tree.find_with_point(1),
-    [Interval::new(0..5), Interval::new(1..6)].iter().cloned().collect()
+    [&(0..5), &(1..6)].iter().cloned().collect()
 );
 
 assert_eq!(
     tree.find_with_point(5),
-    (1..=5).map(|i| Interval::new(i..(i + 5))).collect());
+    [&(1..6), &(2..7), &(3..8), &(4..9), &(5..10)].iter().cloned().collect()
+);
 
 assert_eq!(
     tree.find_with_point(9),
-    [Interval::new(5..10)].iter().cloned().collect()
+    [&(5..10)].iter().cloned().collect()
+);
+
+assert_eq!(
+    tree.find_with_interval(0..3),
+    [&(0..5), &(1..6), &(2..7)].iter().cloned().collect()
+);
+
+assert_eq!(
+    tree.find_with_interval(6..9),
+    [&(2..7), &(3..8), &(4..9), &(5..10)].iter().cloned().collect()
 );
 ```

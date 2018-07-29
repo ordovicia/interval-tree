@@ -22,18 +22,6 @@ pub struct BeginSorted<T: Interval>(T);
 #[derive(Debug, PartialEq, Eq)]
 pub struct EndSorted<T: Interval>(T);
 
-impl<T: Interval> BeginSorted<T> {
-    pub(crate) fn to_interval(&self) -> T {
-        self.0.clone()
-    }
-}
-
-impl<T: Interval> EndSorted<T> {
-    pub(crate) fn to_interval(&self) -> T {
-        self.0.clone()
-    }
-}
-
 impl<T: Interval> Deref for BeginSorted<T> {
     type Target = T;
 
