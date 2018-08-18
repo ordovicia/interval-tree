@@ -1,4 +1,3 @@
-use std::cmp::PartialOrd;
 use std::collections::{BinaryHeap, HashSet};
 
 use interval::{BeginSorted, EndSorted};
@@ -123,7 +122,8 @@ where
 
     fn find_with_point_rec<'a, 'b>(&'a self, point: T::Item, found: &'b mut HashSet<&'a T>) {
         if point < self.center {
-            for intv in self.overlaps_begin
+            for intv in self
+                .overlaps_begin
                 .iter()
                 .filter(|&intv| intv.begin() <= point)
             {
