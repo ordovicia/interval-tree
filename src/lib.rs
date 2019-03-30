@@ -1,15 +1,14 @@
-//! A simple data structure representing an interval tree.
+//! A simple data structure for an interval tree.
 //!
 //! Currently, [`IntervalTree`](struct.IntervalTree.html) supports
 //!
-//! - inserting intervals; and
-//! - findind intervals with a point; and
-//! - findind intervals with an interval.
+//! - inserting intervals
+//! - findind intervals with a point
+//! - findind intervals with an interval
 //!
 //! # Examples
 //!
 //! ```rust
-//! extern crate interval_tree;
 //! use interval_tree::{Interval, IntervalTree};
 //!
 //! let mut tree = IntervalTree::new(0..10);
@@ -55,5 +54,5 @@
 mod interval;
 mod interval_tree;
 
-pub use interval::Interval;
-pub use interval_tree::IntervalTree;
+pub use crate::interval::Interval;
+pub use crate::interval_tree::IntervalTree;

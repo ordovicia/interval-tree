@@ -1,10 +1,9 @@
 use std::collections::{BinaryHeap, HashSet};
 
-use interval::{BeginSorted, EndSorted};
-use Interval;
+use crate::interval::{BeginSorted, EndSorted, Interval};
 
 /// Interval tree.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct IntervalTree<T>
 where
     T: Interval,
@@ -49,11 +48,9 @@ where
     /// # Examples
     ///
     /// ```rust
-    /// extern crate interval_tree;
     /// use interval_tree::{Interval, IntervalTree};
     ///
     /// let mut tree = IntervalTree::new(0..100);
-    ///
     /// tree.insert(5..10);
     /// tree.insert(85..95);
     /// ```
@@ -65,19 +62,15 @@ where
         assert!(!self.overflow_interval(&interval));
 
         if interval.end() <= self.center {
-            if self.left.is_none() {
-                let range = self.range.left_half();
-                self.left = Some(Box::new(IntervalTree::new(range)));
-            }
-
-            self.left.as_mut().unwrap().insert(interval);
+            let range = self.range.left_half();
+            self.left
+                .get_or_insert(Box::new(IntervalTree::new(range)))
+                .insert(interval);
         } else if interval.begin() > self.center {
-            if self.right.is_none() {
-                let range = self.range.right_half();
-                self.right = Some(Box::new(IntervalTree::new(range)));
-            }
-
-            self.right.as_mut().unwrap().insert(interval);
+            let range = self.range.right_half();
+            self.right
+                .get_or_insert(Box::new(IntervalTree::new(range)))
+                .insert(interval);
         } else {
             self.overlaps_begin.push(interval.to_begin_sorted());
             self.overlaps_end.push(interval.to_end_sorted());
@@ -89,8 +82,6 @@ where
     /// # Examples
     ///
     /// ```rust
-    /// extern crate interval_tree;
-    ///
     /// use std::collections::HashSet;
     /// use interval_tree::{Interval, IntervalTree};
     ///
@@ -150,8 +141,6 @@ where
     /// # Examples
     ///
     /// ```rust
-    /// extern crate interval_tree;
-    ///
     /// use std::collections::HashSet;
     /// use interval_tree::{Interval, IntervalTree};
     ///

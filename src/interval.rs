@@ -1,6 +1,8 @@
-use std::cmp::Ordering;
-use std::hash::Hash;
-use std::ops::{Deref, Range};
+use std::{
+    cmp::Ordering,
+    hash::Hash,
+    ops::{Deref, Range},
+};
 
 /// Interval.
 pub trait Interval: Clone + Eq + Hash + Iterator {
@@ -16,10 +18,10 @@ pub trait Interval: Clone + Eq + Hash + Iterator {
     fn to_end_sorted(&self) -> EndSorted<Self>;
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct BeginSorted<T: Interval>(T);
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct EndSorted<T: Interval>(T);
 
 impl<T: Interval> Deref for BeginSorted<T> {

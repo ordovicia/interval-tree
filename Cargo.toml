@@ -2,3 +2,4 @@
 name = "interval_tree"
 version = "0.1.0"
 authors = ["Hidehito Yabuuchi <hdht.ybuc@gmail.com>"]
+edition = "2018"

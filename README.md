@@ -1,17 +1,16 @@
 # Interval Tree
 
-A simple data structure representing an interval tree.
+A simple data structure for efficiently inserting and finding intervals.
 
 Currently this crate supports
 
-- inserting intervals; and
-- findind intervals with a point; and
-- findind intervals with an interval.
+- inserting intervals
+- findind intervals with a point
+- findind intervals with an interval
 
 ## Examples
 
 ```rust
-extern crate interval_tree;
 use interval_tree::{Interval, IntervalTree};
 
 let mut tree = IntervalTree::new(0..10);
